@@ -1,8 +1,11 @@
 package provider
 
 import (
-	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/cloudfront"
-	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/s3"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/acm"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/cloudfront"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/route53"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/s3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -47,14 +50,63 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
+	// Create an ACM certificate for the domain
+	usEast1, err := aws.NewProvider(ctx, "us-east-1", &aws.ProviderArgs{
+		Region: pulumi.String("us-east-1"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	// convert the domain to a string
+	certificate, err := acm.NewCertificate(ctx, "gotiacFileHostingCertificate", &acm.CertificateArgs{
+		DomainName:       args.Domain,
+		ValidationMethod: pulumi.String("DNS"),
+	}, pulumi.Provider(usEast1))
+	if err != nil {
+		return nil, err
+	}
+	// Use the Route 53 HostedZone ID and Record Name/Type from the certificate's DomainValidationOptions to create a DNS record
+	validationRecord := certificate.DomainValidationOptions.Index(pulumi.Int(0))
+	// Create a Route 53 record set for the domain
+	validationRecordEntry, err := route53.NewRecord(ctx, "gotiacFileHostingCertificateValidationRecord", &route53.RecordArgs{
+		Name:   validationRecord.ResourceRecordName().Elem(),
+		Type:   validationRecord.ResourceRecordType().Elem(),
+		ZoneId: pulumi.String("Z0690737HWV9262JDHN4"),
+		Ttl:    pulumi.Int(300),
+		Records: pulumi.StringArray{
+			validationRecord.ResourceRecordValue().Elem(),
+		},
+	}, pulumi.Provider(usEast1))
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a validation object that encapsulates the certificate and its validation DNS entry
+	_, err = acm.NewCertificateValidation(ctx, "certValidation", &acm.CertificateValidationArgs{
+		CertificateArn: certificate.Arn,
+	}, pulumi.Provider(usEast1), pulumi.DependsOn([]pulumi.Resource{certificate, validationRecordEntry}))
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an origin access identity for the CloudFront distribution
+	originAccessIdentity, err := cloudfront.NewOriginAccessIdentity(ctx, "gotiacFileHostingOriginAccessIdentity", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attach a bucket policy that allows CloudFront to read from the bucket
 	// Set up a CloudFront distribution to serve the hosted files
-	_, err = cloudfront.NewDistribution(ctx, "gotiacFileHostingDistribution", &cloudfront.DistributionArgs{
+	distribution, err := cloudfront.NewDistribution(ctx, "gotiacFileHostingDistribution", &cloudfront.DistributionArgs{
+		Aliases: pulumi.StringArray{
+			args.Domain,
+		},
 		Origins: cloudfront.DistributionOriginArray{
 			&cloudfront.DistributionOriginArgs{
 				DomainName: fileHostingBucket.BucketRegionalDomainName,
 				OriginId:   pulumi.String("S3-origin"),
 				S3OriginConfig: &cloudfront.DistributionOriginS3OriginConfigArgs{
-					OriginAccessIdentity: pulumi.String("origin-access-identity/cloudfront/EXAMPLE"),
+					OriginAccessIdentity: originAccessIdentity.CloudfrontAccessIdentityPath,
 				},
 			},
 		},
@@ -86,7 +138,9 @@ func NewFileHosting(ctx *pulumi.Context,
 		},
 		PriceClass: pulumi.String("PriceClass_All"),
 		ViewerCertificate: &cloudfront.DistributionViewerCertificateArgs{
-			CloudfrontDefaultCertificate: pulumi.Bool(true),
+			AcmCertificateArn:      certificate.Arn,
+			SslSupportMethod:       pulumi.String("sni-only"),
+			MinimumProtocolVersion: pulumi.String("TLSv1.2_2021"),
 		},
 		Restrictions: &cloudfront.DistributionRestrictionsArgs{
 			GeoRestriction: &cloudfront.DistributionRestrictionsGeoRestrictionArgs{
@@ -97,6 +151,23 @@ func NewFileHosting(ctx *pulumi.Context,
 	if err != nil {
 		return nil, err
 	}
+
+	// Create a route53 record set for the domain.
+	if _, err := route53.NewRecord(ctx, "gotiacFileHostingRecord", &route53.RecordArgs{
+		Name:   args.Domain,
+		Type:   pulumi.String("A"),
+		ZoneId: pulumi.String("Z0690737HWV9262JDHN4"),
+		Aliases: route53.RecordAliasArray{
+			&route53.RecordAliasArgs{
+				Name:                 distribution.DomainName,
+				ZoneId:               distribution.HostedZoneId,
+				EvaluateTargetHealth: pulumi.Bool(true),
+			},
+		},
+	}, pulumi.DependsOn([]pulumi.Resource{fileHostingBucket})); err != nil {
+		return nil, err
+	}
+
 	// component.Bucket = bucket
 	component.FileHostingUrl = args.Domain.ToStringOutput()
 

@@ -26,8 +26,12 @@ resources:
       domain:
         type: string
         description: The file hosting domain.
+      # hostedZoneId:
+      #   type: string
+      #   description: The hosted zone ID.
     requiredInputs:
       - domain
+      # - hostedZoneId
     properties:
       fileHostingUrl:
         type: string
