@@ -20,6 +20,20 @@ resources:
     required:
       - bucket
       - websiteUrl
+  gotiac:index:FileHosting:
+    isComponent: true
+    inputProperties:
+      domain:
+        type: string
+        description: The file hosting domain.
+    requiredInputs:
+      - domain
+    properties:
+      fileHostingUrl:
+        type: string
+        description: The file hosting URL.
+    required:
+      - fileHostingUrl
 language:
   csharp:
     packageReferences:

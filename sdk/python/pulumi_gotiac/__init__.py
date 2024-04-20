@@ -5,6 +5,7 @@
 from . import _utilities
 import typing
 # Export this package's modules as members:
+from .file_hosting import *
 from .provider import *
 from .static_page import *
 _utilities.register(
@@ -15,6 +16,7 @@ _utilities.register(
   "mod": "index",
   "fqn": "pulumi_gotiac",
   "classes": {
+   "gotiac:index:FileHosting": "FileHosting",
    "gotiac:index:StaticPage": "StaticPage"
   }
  }

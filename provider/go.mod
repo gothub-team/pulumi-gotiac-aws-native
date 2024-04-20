@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/pulumi/pulumi-aws/sdk/v4 v4.0.0
+	github.com/pulumi/pulumi-aws/sdk/v4 v4.38.1
 	github.com/pulumi/pulumi/pkg/v3 v3.30.0
 	github.com/pulumi/pulumi/sdk/v3 v3.30.0
 )
@@ -40,6 +40,7 @@ require (
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.2+incompatible // indirect
 	github.com/gedex/inflector v0.0.0-20170307190818-16278e9db813 // indirect
+	github.com/gofrs/flock v0.7.1 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
@@ -92,6 +93,8 @@ require (
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pkg/term v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pulumi/pulumi-aws/sdk v1.31.0 // indirect
+	github.com/pulumi/pulumi/sdk v1.13.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
