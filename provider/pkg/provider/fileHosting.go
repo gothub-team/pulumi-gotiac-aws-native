@@ -37,10 +37,19 @@ func NewFileHosting(ctx *pulumi.Context,
 	}
 
 	// Create an S3 bucket to host files for the FileHosting service
-	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", &s3.BucketArgs{
-		// Policy: s3.BucketPolicyArgs{,
-	})
+	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
 	if err != nil {
+		return nil, err
+	}
+
+	// Creat public access block configuration to block public access to the bucket.
+	if _, err := s3.NewBucketPublicAccessBlock(ctx, "fileHostingBucketPublicAccessBlock", &s3.BucketPublicAccessBlockArgs{
+		Bucket:                fileHostingBucket.ID(),
+		BlockPublicPolicy:     pulumi.Bool(true),
+		BlockPublicAcls:       pulumi.Bool(true),
+		IgnorePublicAcls:      pulumi.Bool(true),
+		RestrictPublicBuckets: pulumi.Bool(true),
+	}, pulumi.Parent(fileHostingBucket)); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +95,7 @@ func NewFileHosting(ctx *pulumi.Context,
 	}
 
 	// Create a validation object that encapsulates the certificate and its validation DNS entry
-	_, err = acm.NewCertificateValidation(ctx, "certValidation", &acm.CertificateValidationArgs{
+	certificateValidation, err := acm.NewCertificateValidation(ctx, "certValidation", &acm.CertificateValidationArgs{
 		CertificateArn: certificate.Arn,
 	}, pulumi.Provider(usEast1), pulumi.DependsOn([]pulumi.Resource{certificate, validationRecordEntry}))
 	if err != nil {
@@ -98,8 +107,65 @@ func NewFileHosting(ctx *pulumi.Context,
 		Name:                          pulumi.String("OACFileHosting"),
 		Description:                   pulumi.String("Origin Access Control for FileHosting"),
 		OriginAccessControlOriginType: pulumi.String("s3"),
-		SigningBehavior:               pulumi.String("never"),
+		SigningBehavior:               pulumi.String("always"),
 		SigningProtocol:               pulumi.String("sigv4"),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a cache policy for the CloudFront distribution
+	cachePolicy, err := cloudfront.NewCachePolicy(ctx, "gotiacFileHostingCachePolicy", &cloudfront.CachePolicyArgs{
+		DefaultTtl: pulumi.Int(86400),
+		MaxTtl:     pulumi.Int(31536000),
+		MinTtl:     pulumi.Int(1),
+		Name:       pulumi.String("FileHostingCachePolicy"),
+		ParametersInCacheKeyAndForwardedToOrigin: cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginArgs{
+			CookiesConfig: &cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginCookiesConfigArgs{
+				CookieBehavior: pulumi.String("none"),
+			},
+			EnableAcceptEncodingBrotli: pulumi.Bool(false),
+			EnableAcceptEncodingGzip:   pulumi.Bool(false),
+			HeadersConfig: &cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginHeadersConfigArgs{
+				HeaderBehavior: pulumi.String("none"),
+			},
+			QueryStringsConfig: &cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginQueryStringsConfigArgs{
+				QueryStringBehavior: pulumi.String("whitelist"),
+				QueryStrings: &cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginQueryStringsConfigQueryStringsArgs{
+					Items: pulumi.StringArray{
+						pulumi.String("etag"),
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an origin request policy for the CloudFront distribution
+	originRequestPolicy, err := cloudfront.NewOriginRequestPolicy(ctx, "gotiacFileHostingOriginRequestPolicy", &cloudfront.OriginRequestPolicyArgs{
+		Name: pulumi.String("FileHostingOriginRequestPolicy"),
+		CookiesConfig: &cloudfront.OriginRequestPolicyCookiesConfigArgs{
+			CookieBehavior: pulumi.String("none"),
+		},
+		HeadersConfig: &cloudfront.OriginRequestPolicyHeadersConfigArgs{
+			HeaderBehavior: pulumi.String("whitelist"),
+			Headers: &cloudfront.OriginRequestPolicyHeadersConfigHeadersArgs{
+				Items: pulumi.StringArray{
+					pulumi.String("Content-Type"),
+				},
+			},
+		},
+		QueryStringsConfig: &cloudfront.OriginRequestPolicyQueryStringsConfigArgs{
+			QueryStringBehavior: pulumi.String("whitelist"),
+			QueryStrings: &cloudfront.OriginRequestPolicyQueryStringsConfigQueryStringsArgs{
+				Items: pulumi.StringArray{
+					pulumi.String("partNumber"),
+					pulumi.String("uploadId"),
+				},
+			},
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -124,25 +190,23 @@ func NewFileHosting(ctx *pulumi.Context,
 		DefaultCacheBehavior: &cloudfront.DistributionDefaultCacheBehaviorArgs{
 			AllowedMethods: pulumi.StringArray{
 				pulumi.String("GET"),
+				pulumi.String("PUT"),
+				pulumi.String("POST"),
+				pulumi.String("PATCH"),
+				pulumi.String("DELETE"),
 				pulumi.String("HEAD"),
 				pulumi.String("OPTIONS"),
 			},
 			CachedMethods: pulumi.StringArray{
 				pulumi.String("GET"),
 				pulumi.String("HEAD"),
-				pulumi.String("OPTIONS"),
 			},
-			TargetOriginId: pulumi.String("S3-origin"),
-			ForwardedValues: &cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs{
-				QueryString: pulumi.Bool(false),
-				Cookies: &cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs{
-					Forward: pulumi.String("none"),
-				},
-			},
-			ViewerProtocolPolicy: pulumi.String("allow-all"),
-			MinTtl:               pulumi.Int(0),
-			DefaultTtl:           pulumi.Int(3600),
-			MaxTtl:               pulumi.Int(86400),
+			TargetOriginId:          pulumi.String("S3-origin"),
+			ViewerProtocolPolicy:    pulumi.String("redirect-to-https"),
+			CachePolicyId:           cachePolicy.ID(),
+			OriginRequestPolicyId:   originRequestPolicy.ID(),
+			ResponseHeadersPolicyId: pulumi.String("5cc3b908-e619-4b99-88e5-2cf7f45965bd"), // CORS with Preflight
+			Compress:                pulumi.Bool(true),
 		},
 		PriceClass: pulumi.String("PriceClass_All"),
 		ViewerCertificate: &cloudfront.DistributionViewerCertificateArgs{
@@ -155,7 +219,7 @@ func NewFileHosting(ctx *pulumi.Context,
 				RestrictionType: pulumi.String("none"),
 			},
 		},
-	})
+	}, pulumi.DependsOn([]pulumi.Resource{certificateValidation}))
 	if err != nil {
 		return nil, err
 	}
