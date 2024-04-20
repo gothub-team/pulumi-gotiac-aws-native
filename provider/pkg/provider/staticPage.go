@@ -56,6 +56,14 @@ func NewStaticPage(ctx *pulumi.Context,
 		return nil, err
 	}
 
+	// Creat public access block configuration to block public access to the bucket.
+	if _, err := s3.NewBucketPublicAccessBlock(ctx, "bucketPublicAccessBlock", &s3.BucketPublicAccessBlockArgs{
+		Bucket:            bucket.ID(),
+		BlockPublicPolicy: pulumi.Bool(false),
+	}, pulumi.Parent(bucket)); err != nil {
+		return nil, err
+	}
+
 	// Create a bucket object for the index document.
 	if _, err := s3.NewBucketObject(ctx, name, &s3.BucketObjectArgs{
 		Bucket:      bucket.ID(),
