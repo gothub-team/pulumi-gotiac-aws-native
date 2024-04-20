@@ -7,7 +7,8 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/pkg/errors"
+	"errors"
+	"github.com/pulumi/pulumi-gotiac/sdk/go/gotiac/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -28,6 +29,7 @@ func NewFileHosting(ctx *pulumi.Context,
 	if args.Domain == nil {
 		return nil, errors.New("invalid value for required argument 'Domain'")
 	}
+	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource FileHosting
 	err := ctx.RegisterRemoteComponentResource("gotiac:index:FileHosting", name, args, &resource, opts...)
 	if err != nil {
@@ -132,6 +134,11 @@ func (o FileHostingOutput) ToFileHostingOutput() FileHostingOutput {
 
 func (o FileHostingOutput) ToFileHostingOutputWithContext(ctx context.Context) FileHostingOutput {
 	return o
+}
+
+// The file hosting URL.
+func (o FileHostingOutput) FileHostingUrl() pulumi.StringOutput {
+	return o.ApplyT(func(v *FileHosting) pulumi.StringOutput { return v.FileHostingUrl }).(pulumi.StringOutput)
 }
 
 type FileHostingArrayOutput struct{ *pulumi.OutputState }

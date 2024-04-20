@@ -48,7 +48,7 @@ language:
     importBasePath: github.com/pulumi/pulumi-gotiac/sdk/go/gotiac
   nodejs:
     dependencies:
-      "@pulumi/aws": "^4.0.0"
+      "@pulumi/aws": "^6.0.0"
     devDependencies:
       typescript: "*"
   python:

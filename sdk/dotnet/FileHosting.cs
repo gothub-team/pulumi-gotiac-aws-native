@@ -10,7 +10,7 @@ using Pulumi.Serialization;
 namespace Pulumi.Gotiac
 {
     [GotiacResourceType("gotiac:index:FileHosting")]
-    public partial class FileHosting : Pulumi.ComponentResource
+    public partial class FileHosting : global::Pulumi.ComponentResource
     {
         /// <summary>
         /// The file hosting URL.
@@ -44,7 +44,7 @@ namespace Pulumi.Gotiac
         }
     }
 
-    public sealed class FileHostingArgs : Pulumi.ResourceArgs
+    public sealed class FileHostingArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
         /// The file hosting domain.
@@ -55,5 +55,6 @@ namespace Pulumi.Gotiac
         public FileHostingArgs()
         {
         }
+        public static new FileHostingArgs Empty => new FileHostingArgs();
     }
 }

@@ -35,11 +35,15 @@ func NewFileHosting(ctx *pulumi.Context,
 	if err != nil {
 		return nil, err
 	}
+
 	// Create an S3 bucket to host files for the FileHosting service
-	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
+	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", &s3.BucketArgs{
+		// Policy: s3.BucketPolicyArgs{,
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	// Create a bucket object for the index document.
 	if _, err := s3.NewBucketObject(ctx, name, &s3.BucketObjectArgs{
 		Bucket:      fileHostingBucket.ID(),
@@ -89,8 +93,14 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
-	// Create an origin access identity for the CloudFront distribution
-	originAccessIdentity, err := cloudfront.NewOriginAccessIdentity(ctx, "gotiacFileHostingOriginAccessIdentity", nil)
+	// Create an origin access control for the CloudFront distribution
+	originAccessControl, err := cloudfront.NewOriginAccessControl(ctx, "gotiacFileHostingOriginAccessControl", &cloudfront.OriginAccessControlArgs{
+		Name:                          pulumi.String("OACFileHosting"),
+		Description:                   pulumi.String("Origin Access Control for FileHosting"),
+		OriginAccessControlOriginType: pulumi.String("s3"),
+		SigningBehavior:               pulumi.String("never"),
+		SigningProtocol:               pulumi.String("sigv4"),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +113,9 @@ func NewFileHosting(ctx *pulumi.Context,
 		},
 		Origins: cloudfront.DistributionOriginArray{
 			&cloudfront.DistributionOriginArgs{
-				DomainName: fileHostingBucket.BucketRegionalDomainName,
-				OriginId:   pulumi.String("S3-origin"),
-				S3OriginConfig: &cloudfront.DistributionOriginS3OriginConfigArgs{
-					OriginAccessIdentity: originAccessIdentity.CloudfrontAccessIdentityPath,
-				},
+				DomainName:            fileHostingBucket.BucketRegionalDomainName,
+				OriginId:              pulumi.String("S3-origin"),
+				OriginAccessControlId: originAccessControl.ID(),
 			},
 		},
 		Enabled:       pulumi.Bool(true),
@@ -165,6 +173,39 @@ func NewFileHosting(ctx *pulumi.Context,
 			},
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{fileHostingBucket})); err != nil {
+		return nil, err
+	}
+
+	callerIdentity, err := aws.GetCallerIdentity(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Create Bucket policy
+	if _, err := s3.NewBucketPolicy(ctx, "bucketPolicy", &s3.BucketPolicyArgs{
+		Bucket: fileHostingBucket.ID(),
+		Policy: pulumi.Any(map[string]interface{}{
+			"Version": "2012-10-17",
+			"Statement": []map[string]interface{}{
+				{
+					"Effect": "Allow",
+					"Principal": map[string]interface{}{
+						"Service": "cloudfront.amazonaws.com",
+					},
+					"Action": []interface{}{
+						"s3:GetObject",
+					},
+					"Resource": []interface{}{
+						pulumi.Sprintf("arn:aws:s3:::%s/*", fileHostingBucket.ID()), // policy refers to bucket name explicitly
+					},
+					"Condition": map[string]interface{}{
+						"StringEquals": map[string]interface{}{
+							"AWS:SourceArn": pulumi.Sprintf("arn:aws:cloudfront::%s:distribution/%s", callerIdentity.AccountId, distribution.ID()),
+						},
+					},
+				},
+			},
+		}),
+	}, pulumi.Parent(fileHostingBucket)); err != nil {
 		return nil, err
 	}
 

@@ -74,7 +74,7 @@ namespace Pulumi.Gotiac
         }
     }
 
-    internal sealed class GotiacResourceTypeAttribute : Pulumi.ResourceTypeAttribute
+    internal sealed class GotiacResourceTypeAttribute : global::Pulumi.ResourceTypeAttribute
     {
         public GotiacResourceTypeAttribute(string type) : base(type, Utilities.Version)
         {

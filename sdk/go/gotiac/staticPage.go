@@ -7,8 +7,9 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/pkg/errors"
-	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/s3"
+	"errors"
+	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/s3"
+	"github.com/pulumi/pulumi-gotiac/sdk/go/gotiac/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -31,6 +32,7 @@ func NewStaticPage(ctx *pulumi.Context,
 	if args.IndexContent == nil {
 		return nil, errors.New("invalid value for required argument 'IndexContent'")
 	}
+	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource StaticPage
 	err := ctx.RegisterRemoteComponentResource("gotiac:index:StaticPage", name, args, &resource, opts...)
 	if err != nil {
@@ -135,6 +137,16 @@ func (o StaticPageOutput) ToStaticPageOutput() StaticPageOutput {
 
 func (o StaticPageOutput) ToStaticPageOutputWithContext(ctx context.Context) StaticPageOutput {
 	return o
+}
+
+// The bucket resource.
+func (o StaticPageOutput) Bucket() s3.BucketOutput {
+	return o.ApplyT(func(v *StaticPage) s3.BucketOutput { return v.Bucket }).(s3.BucketOutput)
+}
+
+// The website URL.
+func (o StaticPageOutput) WebsiteUrl() pulumi.StringOutput {
+	return o.ApplyT(func(v *StaticPage) pulumi.StringOutput { return v.WebsiteUrl }).(pulumi.StringOutput)
 }
 
 type StaticPageArrayOutput struct{ *pulumi.OutputState }

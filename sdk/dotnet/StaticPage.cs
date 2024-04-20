@@ -10,7 +10,7 @@ using Pulumi.Serialization;
 namespace Pulumi.Gotiac
 {
     [GotiacResourceType("gotiac:index:StaticPage")]
-    public partial class StaticPage : Pulumi.ComponentResource
+    public partial class StaticPage : global::Pulumi.ComponentResource
     {
         /// <summary>
         /// The bucket resource.
@@ -50,7 +50,7 @@ namespace Pulumi.Gotiac
         }
     }
 
-    public sealed class StaticPageArgs : Pulumi.ResourceArgs
+    public sealed class StaticPageArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
         /// The HTML content for index.html.
@@ -61,5 +61,6 @@ namespace Pulumi.Gotiac
         public StaticPageArgs()
         {
         }
+        public static new StaticPageArgs Empty => new StaticPageArgs();
     }
 }
