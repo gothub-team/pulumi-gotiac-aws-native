@@ -306,6 +306,7 @@ func NewFileHosting(ctx *pulumi.Context,
 					},
 					"Action": []interface{}{
 						"s3:GetObject",
+						"s3:PutObject",
 					},
 					"Resource": []interface{}{
 						pulumi.Sprintf("arn:aws:s3:::%s/*", fileHostingBucket.ID()), // policy refers to bucket name explicitly
