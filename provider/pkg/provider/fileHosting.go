@@ -16,8 +16,11 @@ import (
 
 // The set of arguments for creating a FileHosting component resource.
 type FileHostingArgs struct {
-	// The HTML content for index.html.
+	// The file hosting domain.
 	Domain pulumi.StringInput `pulumi:"domain"`
+	// The name of existing s3 Bucket to link as origin. If not provided, a new bucket
+	// will be created.
+	BucketName *pulumi.StringInput `pulumi:"bucketName"`
 }
 
 // The FileHosting component resource.
@@ -43,30 +46,38 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
-	// Create an S3 bucket to host files for the FileHosting service
-	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
-	if err != nil {
-		return nil, err
+	var bucketName pulumi.StringInput
+	var bucketRegionalDomainName pulumi.StringInput
+	if args.BucketName != nil {
+		bucketName = *args.BucketName
+		// Look up the bucket regional domain name
+		bucketRegionalDomainName = (*args.BucketName).ToStringOutput().ApplyT(func(name string) (string, error) {
+			bucket, err := s3.LookupBucket(ctx, &s3.LookupBucketArgs{
+				Bucket: name,
+			})
+			if err != nil {
+				return "", err
+			}
+			return bucket.BucketRegionalDomainName, nil
+		}).(pulumi.StringOutput)
+	} else {
+		// Create an S3 bucket to host files for the FileHosting service
+		fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
+		if err != nil {
+			return nil, err
+		}
+		bucketName = fileHostingBucket.Bucket
+		bucketRegionalDomainName = fileHostingBucket.BucketRegionalDomainName
 	}
 
 	// Creat public access block configuration to block public access to the bucket.
 	if _, err := s3.NewBucketPublicAccessBlock(ctx, "fileHostingBucketPublicAccessBlock", &s3.BucketPublicAccessBlockArgs{
-		Bucket:                fileHostingBucket.ID(),
+		Bucket:                bucketName,
 		BlockPublicPolicy:     pulumi.Bool(true),
 		BlockPublicAcls:       pulumi.Bool(true),
 		IgnorePublicAcls:      pulumi.Bool(true),
 		RestrictPublicBuckets: pulumi.Bool(true),
-	}, pulumi.Parent(fileHostingBucket)); err != nil {
-		return nil, err
-	}
-
-	// Create a bucket object for the index document.
-	if _, err := s3.NewBucketObject(ctx, name, &s3.BucketObjectArgs{
-		Bucket:      fileHostingBucket.ID(),
-		Key:         pulumi.String("index.html"),
-		Content:     pulumi.String("Hello, world!"),
-		ContentType: pulumi.String("text/html"),
-	}, pulumi.Parent(fileHostingBucket)); err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +238,7 @@ func NewFileHosting(ctx *pulumi.Context,
 		},
 		Origins: cloudfront.DistributionOriginArray{
 			&cloudfront.DistributionOriginArgs{
-				DomainName:            fileHostingBucket.BucketRegionalDomainName,
+				DomainName:            bucketRegionalDomainName,
 				OriginId:              pulumi.String("S3-origin"),
 				OriginAccessControlId: originAccessControl.ID(),
 			},
@@ -287,7 +298,7 @@ func NewFileHosting(ctx *pulumi.Context,
 				EvaluateTargetHealth: pulumi.Bool(true),
 			},
 		},
-	}, pulumi.DependsOn([]pulumi.Resource{fileHostingBucket})); err != nil {
+	}, pulumi.DependsOn([]pulumi.Resource{distribution})); err != nil {
 		return nil, err
 	}
 
@@ -297,7 +308,7 @@ func NewFileHosting(ctx *pulumi.Context,
 	}
 	// Create Bucket policy
 	if _, err := s3.NewBucketPolicy(ctx, "bucketPolicy", &s3.BucketPolicyArgs{
-		Bucket: fileHostingBucket.ID(),
+		Bucket: bucketName,
 		Policy: pulumi.Any(map[string]interface{}{
 			"Version": "2012-10-17",
 			"Statement": []map[string]interface{}{
@@ -311,7 +322,7 @@ func NewFileHosting(ctx *pulumi.Context,
 						"s3:PutObject",
 					},
 					"Resource": []interface{}{
-						pulumi.Sprintf("arn:aws:s3:::%s/*", fileHostingBucket.ID()), // policy refers to bucket name explicitly
+						pulumi.Sprintf("arn:aws:s3:::%s/*", bucketName), // policy refers to bucket name explicitly
 					},
 					"Condition": map[string]interface{}{
 						"StringEquals": map[string]interface{}{
@@ -321,7 +332,7 @@ func NewFileHosting(ctx *pulumi.Context,
 				},
 			},
 		}),
-	}, pulumi.Parent(fileHostingBucket)); err != nil {
+	}); err != nil {
 		return nil, err
 	}
 

@@ -46,6 +46,7 @@ export class FileHosting extends pulumi.ComponentResource {
             if ((!args || args.domain === undefined) && !opts.urn) {
                 throw new Error("Missing required property 'domain'");
             }
+            resourceInputs["bucketName"] = args ? args.bucketName : undefined;
             resourceInputs["domain"] = args ? args.domain : undefined;
             resourceInputs["privateKeyId"] = undefined /*out*/;
             resourceInputs["privateKeyParameterName"] = undefined /*out*/;
@@ -64,6 +65,10 @@ export class FileHosting extends pulumi.ComponentResource {
  * The set of arguments for constructing a FileHosting resource.
  */
 export interface FileHostingArgs {
+    /**
+     * The name of an existing s3 Bucket to link as origin. If not provided, a new bucket will be created.
+     */
+    bucketName?: pulumi.Input<string>;
     /**
      * The file hosting domain.
      */

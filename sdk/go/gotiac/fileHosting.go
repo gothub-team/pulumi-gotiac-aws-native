@@ -15,6 +15,10 @@ import (
 type FileHosting struct {
 	pulumi.ResourceState
 
+	// The ID the private key.
+	PrivateKeyId pulumi.StringOutput `pulumi:"privateKeyId"`
+	// The parameter name for the private key.
+	PrivateKeyParameterName pulumi.StringOutput `pulumi:"privateKeyParameterName"`
 	// The file hosting URL.
 	Url pulumi.StringOutput `pulumi:"url"`
 }
@@ -39,22 +43,18 @@ func NewFileHosting(ctx *pulumi.Context,
 }
 
 type fileHostingArgs struct {
+	// The name of an existing s3 Bucket to link as origin. If not provided, a new bucket will be created.
+	BucketName *string `pulumi:"bucketName"`
 	// The file hosting domain.
 	Domain string `pulumi:"domain"`
-	// The ID the private key.
-	PrivateKeyId *string `pulumi:"privateKeyId"`
-	// The parameter name for the private key.
-	PrivateKeyParameterName *string `pulumi:"privateKeyParameterName"`
 }
 
 // The set of arguments for constructing a FileHosting resource.
 type FileHostingArgs struct {
+	// The name of an existing s3 Bucket to link as origin. If not provided, a new bucket will be created.
+	BucketName pulumi.StringPtrInput
 	// The file hosting domain.
 	Domain pulumi.StringInput
-	// The ID the private key.
-	PrivateKeyId pulumi.StringPtrInput
-	// The parameter name for the private key.
-	PrivateKeyParameterName pulumi.StringPtrInput
 }
 
 func (FileHostingArgs) ElementType() reflect.Type {
@@ -142,6 +142,16 @@ func (o FileHostingOutput) ToFileHostingOutput() FileHostingOutput {
 
 func (o FileHostingOutput) ToFileHostingOutputWithContext(ctx context.Context) FileHostingOutput {
 	return o
+}
+
+// The ID the private key.
+func (o FileHostingOutput) PrivateKeyId() pulumi.StringOutput {
+	return o.ApplyT(func(v *FileHosting) pulumi.StringOutput { return v.PrivateKeyId }).(pulumi.StringOutput)
+}
+
+// The parameter name for the private key.
+func (o FileHostingOutput) PrivateKeyParameterName() pulumi.StringOutput {
+	return o.ApplyT(func(v *FileHosting) pulumi.StringOutput { return v.PrivateKeyParameterName }).(pulumi.StringOutput)
 }
 
 // The file hosting URL.

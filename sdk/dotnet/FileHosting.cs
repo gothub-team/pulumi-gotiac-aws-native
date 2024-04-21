@@ -13,6 +13,18 @@ namespace Pulumi.Gotiac
     public partial class FileHosting : global::Pulumi.ComponentResource
     {
         /// <summary>
+        /// The ID the private key.
+        /// </summary>
+        [Output("privateKeyId")]
+        public Output<string> PrivateKeyId { get; private set; } = null!;
+
+        /// <summary>
+        /// The parameter name for the private key.
+        /// </summary>
+        [Output("privateKeyParameterName")]
+        public Output<string> PrivateKeyParameterName { get; private set; } = null!;
+
+        /// <summary>
         /// The file hosting URL.
         /// </summary>
         [Output("url")]
@@ -47,22 +59,16 @@ namespace Pulumi.Gotiac
     public sealed class FileHostingArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
+        /// The name of an existing s3 Bucket to link as origin. If not provided, a new bucket will be created.
+        /// </summary>
+        [Input("bucketName")]
+        public Input<string>? BucketName { get; set; }
+
+        /// <summary>
         /// The file hosting domain.
         /// </summary>
         [Input("domain", required: true)]
         public Input<string> Domain { get; set; } = null!;
-
-        /// <summary>
-        /// The ID the private key.
-        /// </summary>
-        [Input("privateKeyId")]
-        public Input<string>? PrivateKeyId { get; set; }
-
-        /// <summary>
-        /// The parameter name for the private key.
-        /// </summary>
-        [Input("privateKeyParameterName")]
-        public Input<string>? PrivateKeyParameterName { get; set; }
 
         public FileHostingArgs()
         {

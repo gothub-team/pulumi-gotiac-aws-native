@@ -26,12 +26,11 @@ resources:
       domain:
         type: string
         description: The file hosting domain.
-      # hostedZoneId:
-      #   type: string
-      #   description: The hosted zone ID.
+      bucketName:
+        type: string
+        description: The name of an existing s3 Bucket to link as origin. If not provided, a new bucket will be created.
     requiredInputs:
       - domain
-      # - hostedZoneId
     properties:
       url:
         type: string
