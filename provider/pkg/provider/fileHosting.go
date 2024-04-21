@@ -1,6 +1,9 @@
 package provider
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/acm"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/cloudfront"
@@ -36,6 +39,11 @@ func NewFileHosting(ctx *pulumi.Context,
 
 	component := &FileHosting{}
 	err := ctx.RegisterComponentResource("gotiac:index:FileHosting", name, component, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	hostedZoneId, err := lookUpHostedZone(ctx, args.Domain)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +96,7 @@ func NewFileHosting(ctx *pulumi.Context,
 	validationRecordEntry, err := route53.NewRecord(ctx, "gotiacFileHostingCertificateValidationRecord", &route53.RecordArgs{
 		Name:   validationRecord.ResourceRecordName().Elem(),
 		Type:   validationRecord.ResourceRecordType().Elem(),
-		ZoneId: pulumi.String("Z0690737HWV9262JDHN4"),
+		ZoneId: hostedZoneId,
 		Ttl:    pulumi.Int(300),
 		Records: pulumi.StringArray{
 			validationRecord.ResourceRecordValue().Elem(),
@@ -214,9 +222,6 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
-	component.PrivateKeyParameterName = fileHostingKeyParameter.Name
-	component.PrivateKeyId = pulumi.StringOutput(publicKey.ID())
-
 	// Attach a bucket policy that allows CloudFront to read from the bucket
 	// Set up a CloudFront distribution to serve the hosted files
 	distribution, err := cloudfront.NewDistribution(ctx, "gotiacFileHostingDistribution", &cloudfront.DistributionArgs{
@@ -277,7 +282,7 @@ func NewFileHosting(ctx *pulumi.Context,
 	if _, err := route53.NewRecord(ctx, "gotiacFileHostingRecord", &route53.RecordArgs{
 		Name:   args.Domain,
 		Type:   pulumi.String("A"),
-		ZoneId: pulumi.String("Z0690737HWV9262JDHN4"),
+		ZoneId: hostedZoneId,
 		Aliases: route53.RecordAliasArray{
 			&route53.RecordAliasArgs{
 				Name:                 distribution.DomainName,
@@ -324,6 +329,9 @@ func NewFileHosting(ctx *pulumi.Context,
 	}
 
 	// component.Bucket = bucket
+
+	component.PrivateKeyParameterName = fileHostingKeyParameter.Name
+	component.PrivateKeyId = pulumi.StringOutput(publicKey.ID())
 	component.Url = args.Domain.ToStringOutput()
 
 	if err := ctx.RegisterResourceOutputs(component, pulumi.Map{
@@ -335,4 +343,33 @@ func NewFileHosting(ctx *pulumi.Context,
 	}
 
 	return component, nil
+}
+
+func lookUpHostedZone(ctx *pulumi.Context, domain pulumi.StringInput) (*pulumi.StringOutput, error) {
+	var err error
+	hostedZoneId := domain.ToStringOutput().ApplyT(func(_domain string) string {
+		// Split the domain into parts
+		parts := strings.Split(_domain, ".")
+		// Construct each parent domain starting from the full domain
+		for i := range parts {
+			// Join parts from i to end
+			parentDomain := strings.Join(parts[i:], ".") + "."
+			// Look up the hosted zone for the parent domain
+			hostedZone, err := route53.LookupZone(ctx, &route53.LookupZoneArgs{
+				Name: &parentDomain,
+			})
+			if err != nil {
+				continue
+			}
+			if hostedZone != nil {
+				return hostedZone.Id
+			}
+		}
+		err = errors.New("no hosted zone found for domain " + _domain)
+		return ""
+	}).(pulumi.StringOutput)
+	if err != nil {
+		return nil, err
+	}
+	return &hostedZoneId, nil
 }
