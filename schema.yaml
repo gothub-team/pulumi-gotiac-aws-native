@@ -33,11 +33,19 @@ resources:
       - domain
       # - hostedZoneId
     properties:
-      fileHostingUrl:
+      url:
         type: string
         description: The file hosting URL.
+      privateKeyParameterName:
+        type: string
+        description: The parameter name for the private key.
+      privateKeyId:
+        type: string
+        description: The ID the private key.
     required:
-      - fileHostingUrl
+      - url
+      - privateKeyParameterName
+      - privateKeyId
 language:
   csharp:
     packageReferences:

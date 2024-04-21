@@ -6,6 +6,8 @@ import (
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/cloudfront"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/route53"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/s3"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ssm"
+	tls "github.com/pulumi/pulumi-tls/sdk/v4/go/tls"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -20,7 +22,9 @@ type FileHosting struct {
 	pulumi.ResourceState
 
 	// Bucket     *s3.Bucket          `pulumi:"bucket"`
-	FileHostingUrl pulumi.StringOutput `pulumi:"fileHostingUrl"`
+	Url                     pulumi.StringOutput `pulumi:"url"`
+	PrivateKeyParameterName pulumi.StringOutput `pulumi:"privateKeyParameterName"`
+	PrivateKeyId            pulumi.StringOutput `pulumi:"privateKeyId"`
 }
 
 // NewFileHosting creates a new FileHosting component resource.
@@ -171,6 +175,48 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
+	// Generate RSA Public/Private Key Pair for CloudFront Trusted Key Groups using tls package
+	privateRsaKey, err := tls.NewPrivateKey(ctx, "gotiacFileHostingPrivateRsaKey", &tls.PrivateKeyArgs{
+		RsaBits:   pulumi.Int(2048),
+		Algorithm: pulumi.String("RSA"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	publicRsaKey := tls.GetPublicKeyOutput(ctx, tls.GetPublicKeyOutputArgs{
+		PrivateKeyPem: privateRsaKey.PrivateKeyPem,
+	})
+
+	// // Create a public key for the CloudFront distribution
+	publicKey, err := cloudfront.NewPublicKey(ctx, "gotiacFileHostingPublicKey", &cloudfront.PublicKeyArgs{
+		EncodedKey: publicRsaKey.PublicKeyPem(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Key Group for the CloudFront distribution
+	keyGroup, err := cloudfront.NewKeyGroup(ctx, "gotiacFileHostingKeyGroup", &cloudfront.KeyGroupArgs{
+		Items: pulumi.StringArray{
+			publicKey.ID(),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create SSM paramters for the private key and cloudfront access key id
+	fileHostingKeyParameter, err := ssm.NewParameter(ctx, "gotiacFileHostingPrivateKey", &ssm.ParameterArgs{
+		Type:  pulumi.String("SecureString"),
+		Value: privateRsaKey.PrivateKeyPem,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	component.PrivateKeyParameterName = fileHostingKeyParameter.Name
+	component.PrivateKeyId = pulumi.StringOutput(publicKey.ID())
+
 	// Attach a bucket policy that allows CloudFront to read from the bucket
 	// Set up a CloudFront distribution to serve the hosted files
 	distribution, err := cloudfront.NewDistribution(ctx, "gotiacFileHostingDistribution", &cloudfront.DistributionArgs{
@@ -207,6 +253,9 @@ func NewFileHosting(ctx *pulumi.Context,
 			OriginRequestPolicyId:   originRequestPolicy.ID(),
 			ResponseHeadersPolicyId: pulumi.String("5cc3b908-e619-4b99-88e5-2cf7f45965bd"), // CORS with Preflight
 			Compress:                pulumi.Bool(true),
+			TrustedKeyGroups: pulumi.StringArray{
+				keyGroup.ID(),
+			},
 		},
 		PriceClass: pulumi.String("PriceClass_All"),
 		ViewerCertificate: &cloudfront.DistributionViewerCertificateArgs{
@@ -274,10 +323,12 @@ func NewFileHosting(ctx *pulumi.Context,
 	}
 
 	// component.Bucket = bucket
-	component.FileHostingUrl = args.Domain.ToStringOutput()
+	component.Url = args.Domain.ToStringOutput()
 
 	if err := ctx.RegisterResourceOutputs(component, pulumi.Map{
-		"fileHostingUrl": component.FileHostingUrl,
+		"url":                     component.Url,
+		"privateKeyParameterName": component.PrivateKeyParameterName,
+		"privateKeyId":            component.PrivateKeyId,
 	}); err != nil {
 		return nil, err
 	}

@@ -20,9 +20,17 @@ export class FileHosting extends pulumi.ComponentResource {
     }
 
     /**
+     * The ID the private key.
+     */
+    public /*out*/ readonly privateKeyId!: pulumi.Output<string>;
+    /**
+     * The parameter name for the private key.
+     */
+    public /*out*/ readonly privateKeyParameterName!: pulumi.Output<string>;
+    /**
      * The file hosting URL.
      */
-    public /*out*/ readonly fileHostingUrl!: pulumi.Output<string>;
+    public /*out*/ readonly url!: pulumi.Output<string>;
 
     /**
      * Create a FileHosting resource with the given unique name, arguments, and options.
@@ -39,9 +47,13 @@ export class FileHosting extends pulumi.ComponentResource {
                 throw new Error("Missing required property 'domain'");
             }
             resourceInputs["domain"] = args ? args.domain : undefined;
-            resourceInputs["fileHostingUrl"] = undefined /*out*/;
+            resourceInputs["privateKeyId"] = undefined /*out*/;
+            resourceInputs["privateKeyParameterName"] = undefined /*out*/;
+            resourceInputs["url"] = undefined /*out*/;
         } else {
-            resourceInputs["fileHostingUrl"] = undefined /*out*/;
+            resourceInputs["privateKeyId"] = undefined /*out*/;
+            resourceInputs["privateKeyParameterName"] = undefined /*out*/;
+            resourceInputs["url"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
         super(FileHosting.__pulumiType, name, resourceInputs, opts, true /*remote*/);

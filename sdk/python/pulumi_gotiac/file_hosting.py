@@ -14,12 +14,20 @@ __all__ = ['FileHostingArgs', 'FileHosting']
 @pulumi.input_type
 class FileHostingArgs:
     def __init__(__self__, *,
-                 domain: pulumi.Input[str]):
+                 domain: pulumi.Input[str],
+                 private_key_id: Optional[pulumi.Input[str]] = None,
+                 private_key_parameter_name: Optional[pulumi.Input[str]] = None):
         """
         The set of arguments for constructing a FileHosting resource.
         :param pulumi.Input[str] domain: The file hosting domain.
+        :param pulumi.Input[str] private_key_id: The ID the private key.
+        :param pulumi.Input[str] private_key_parameter_name: The parameter name for the private key.
         """
         pulumi.set(__self__, "domain", domain)
+        if private_key_id is not None:
+            pulumi.set(__self__, "private_key_id", private_key_id)
+        if private_key_parameter_name is not None:
+            pulumi.set(__self__, "private_key_parameter_name", private_key_parameter_name)
 
     @property
     @pulumi.getter
@@ -33,6 +41,30 @@ class FileHostingArgs:
     def domain(self, value: pulumi.Input[str]):
         pulumi.set(self, "domain", value)
 
+    @property
+    @pulumi.getter(name="privateKeyId")
+    def private_key_id(self) -> Optional[pulumi.Input[str]]:
+        """
+        The ID the private key.
+        """
+        return pulumi.get(self, "private_key_id")
+
+    @private_key_id.setter
+    def private_key_id(self, value: Optional[pulumi.Input[str]]):
+        pulumi.set(self, "private_key_id", value)
+
+    @property
+    @pulumi.getter(name="privateKeyParameterName")
+    def private_key_parameter_name(self) -> Optional[pulumi.Input[str]]:
+        """
+        The parameter name for the private key.
+        """
+        return pulumi.get(self, "private_key_parameter_name")
+
+    @private_key_parameter_name.setter
+    def private_key_parameter_name(self, value: Optional[pulumi.Input[str]]):
+        pulumi.set(self, "private_key_parameter_name", value)
+
 
 class FileHosting(pulumi.ComponentResource):
     @overload
@@ -40,12 +72,16 @@ class FileHosting(pulumi.ComponentResource):
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  domain: Optional[pulumi.Input[str]] = None,
+                 private_key_id: Optional[pulumi.Input[str]] = None,
+                 private_key_parameter_name: Optional[pulumi.Input[str]] = None,
                  __props__=None):
         """
         Create a FileHosting resource with the given unique name, props, and options.
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
         :param pulumi.Input[str] domain: The file hosting domain.
+        :param pulumi.Input[str] private_key_id: The ID the private key.
+        :param pulumi.Input[str] private_key_parameter_name: The parameter name for the private key.
         """
         ...
     @overload
@@ -71,6 +107,8 @@ class FileHosting(pulumi.ComponentResource):
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  domain: Optional[pulumi.Input[str]] = None,
+                 private_key_id: Optional[pulumi.Input[str]] = None,
+                 private_key_parameter_name: Optional[pulumi.Input[str]] = None,
                  __props__=None):
         opts = pulumi.ResourceOptions.merge(_utilities.get_resource_opts_defaults(), opts)
         if not isinstance(opts, pulumi.ResourceOptions):
@@ -85,7 +123,9 @@ class FileHosting(pulumi.ComponentResource):
             if domain is None and not opts.urn:
                 raise TypeError("Missing required property 'domain'")
             __props__.__dict__["domain"] = domain
-            __props__.__dict__["file_hosting_url"] = None
+            __props__.__dict__["private_key_id"] = private_key_id
+            __props__.__dict__["private_key_parameter_name"] = private_key_parameter_name
+            __props__.__dict__["url"] = None
         super(FileHosting, __self__).__init__(
             'gotiac:index:FileHosting',
             resource_name,
@@ -94,10 +134,10 @@ class FileHosting(pulumi.ComponentResource):
             remote=True)
 
     @property
-    @pulumi.getter(name="fileHostingUrl")
-    def file_hosting_url(self) -> pulumi.Output[str]:
+    @pulumi.getter
+    def url(self) -> pulumi.Output[str]:
         """
         The file hosting URL.
         """
-        return pulumi.get(self, "file_hosting_url")
+        return pulumi.get(self, "url")
 

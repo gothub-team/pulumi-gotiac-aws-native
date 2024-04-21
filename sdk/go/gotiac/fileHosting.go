@@ -16,7 +16,7 @@ type FileHosting struct {
 	pulumi.ResourceState
 
 	// The file hosting URL.
-	FileHostingUrl pulumi.StringOutput `pulumi:"fileHostingUrl"`
+	Url pulumi.StringOutput `pulumi:"url"`
 }
 
 // NewFileHosting registers a new resource with the given unique name, arguments, and options.
@@ -41,12 +41,20 @@ func NewFileHosting(ctx *pulumi.Context,
 type fileHostingArgs struct {
 	// The file hosting domain.
 	Domain string `pulumi:"domain"`
+	// The ID the private key.
+	PrivateKeyId *string `pulumi:"privateKeyId"`
+	// The parameter name for the private key.
+	PrivateKeyParameterName *string `pulumi:"privateKeyParameterName"`
 }
 
 // The set of arguments for constructing a FileHosting resource.
 type FileHostingArgs struct {
 	// The file hosting domain.
 	Domain pulumi.StringInput
+	// The ID the private key.
+	PrivateKeyId pulumi.StringPtrInput
+	// The parameter name for the private key.
+	PrivateKeyParameterName pulumi.StringPtrInput
 }
 
 func (FileHostingArgs) ElementType() reflect.Type {
@@ -137,8 +145,8 @@ func (o FileHostingOutput) ToFileHostingOutputWithContext(ctx context.Context) F
 }
 
 // The file hosting URL.
-func (o FileHostingOutput) FileHostingUrl() pulumi.StringOutput {
-	return o.ApplyT(func(v *FileHosting) pulumi.StringOutput { return v.FileHostingUrl }).(pulumi.StringOutput)
+func (o FileHostingOutput) Url() pulumi.StringOutput {
+	return o.ApplyT(func(v *FileHosting) pulumi.StringOutput { return v.Url }).(pulumi.StringOutput)
 }
 
 type FileHostingArrayOutput struct{ *pulumi.OutputState }

@@ -15,8 +15,8 @@ namespace Pulumi.Gotiac
         /// <summary>
         /// The file hosting URL.
         /// </summary>
-        [Output("fileHostingUrl")]
-        public Output<string> FileHostingUrl { get; private set; } = null!;
+        [Output("url")]
+        public Output<string> Url { get; private set; } = null!;
 
 
         /// <summary>
@@ -51,6 +51,18 @@ namespace Pulumi.Gotiac
         /// </summary>
         [Input("domain", required: true)]
         public Input<string> Domain { get; set; } = null!;
+
+        /// <summary>
+        /// The ID the private key.
+        /// </summary>
+        [Input("privateKeyId")]
+        public Input<string>? PrivateKeyId { get; set; }
+
+        /// <summary>
+        /// The parameter name for the private key.
+        /// </summary>
+        [Input("privateKeyParameterName")]
+        public Input<string>? PrivateKeyParameterName { get; set; }
 
         public FileHostingArgs()
         {
