@@ -43,10 +43,7 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
-	hostedZoneId, err := lookUpHostedZone(ctx, args.Domain)
-	if err != nil {
-		return nil, err
-	}
+	hostedZoneId := lookUpHostedZone(ctx, args.Domain)
 
 	// Create an S3 bucket to host files for the FileHosting service
 	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
@@ -345,9 +342,8 @@ func NewFileHosting(ctx *pulumi.Context,
 	return component, nil
 }
 
-func lookUpHostedZone(ctx *pulumi.Context, domain pulumi.StringInput) (*pulumi.StringOutput, error) {
-	var err error
-	hostedZoneId := domain.ToStringOutput().ApplyT(func(_domain string) string {
+func lookUpHostedZone(ctx *pulumi.Context, domain pulumi.StringInput) pulumi.StringOutput {
+	return domain.ToStringOutput().ApplyT(func(_domain string) (string, error) {
 		// Split the domain into parts
 		parts := strings.Split(_domain, ".")
 		// Construct each parent domain starting from the full domain
@@ -362,14 +358,9 @@ func lookUpHostedZone(ctx *pulumi.Context, domain pulumi.StringInput) (*pulumi.S
 				continue
 			}
 			if hostedZone != nil {
-				return hostedZone.Id
+				return hostedZone.Id, nil
 			}
 		}
-		err = errors.New("no hosted zone found for domain " + _domain)
-		return ""
+		return "", errors.New("no hosted zone found for domain " + _domain)
 	}).(pulumi.StringOutput)
-	if err != nil {
-		return nil, err
-	}
-	return &hostedZoneId, nil
 }
