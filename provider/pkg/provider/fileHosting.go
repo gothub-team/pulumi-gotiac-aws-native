@@ -43,8 +43,6 @@ func NewFileHosting(ctx *pulumi.Context,
 		return nil, err
 	}
 
-	hostedZoneId := lookUpHostedZone(ctx, args.Domain)
-
 	// Create an S3 bucket to host files for the FileHosting service
 	fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
 	if err != nil {
@@ -87,6 +85,8 @@ func NewFileHosting(ctx *pulumi.Context,
 	if err != nil {
 		return nil, err
 	}
+	// Look up the hosted zone for the domain
+	hostedZoneId := lookUpHostedZone(ctx, args.Domain)
 	// Use the Route 53 HostedZone ID and Record Name/Type from the certificate's DomainValidationOptions to create a DNS record
 	validationRecord := certificate.DomainValidationOptions.Index(pulumi.Int(0))
 	// Create a Route 53 record set for the domain
