@@ -62,12 +62,21 @@ func NewFileHosting(ctx *pulumi.Context,
 		}).(pulumi.StringOutput)
 	} else {
 		// Create an S3 bucket to host files for the FileHosting service
-		fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", nil)
+		fileHostingBucket, err := s3.NewBucket(ctx, "gotiacFileHosting", &s3.BucketArgs{})
 		if err != nil {
 			return nil, err
 		}
 		bucketName = fileHostingBucket.Bucket
 		bucketRegionalDomainName = fileHostingBucket.BucketRegionalDomainName
+	}
+
+	if _, err = s3.NewBucketOwnershipControls(ctx, "fileHostingBucketOwnerShipControls", &s3.BucketOwnershipControlsArgs{
+		Bucket: bucketName,
+		Rule: &s3.BucketOwnershipControlsRuleArgs{
+			ObjectOwnership: pulumi.String("BucketOwnerEnforced"),
+		},
+	}); err != nil {
+		return nil, err
 	}
 
 	// Creat public access block configuration to block public access to the bucket.
@@ -124,7 +133,6 @@ func NewFileHosting(ctx *pulumi.Context,
 
 	// Create an origin access control for the CloudFront distribution
 	originAccessControl, err := cloudfront.NewOriginAccessControl(ctx, "gotiacFileHostingOriginAccessControl", &cloudfront.OriginAccessControlArgs{
-		Name:                          pulumi.String("OACFileHosting"),
 		Description:                   pulumi.String("Origin Access Control for FileHosting"),
 		OriginAccessControlOriginType: pulumi.String("s3"),
 		SigningBehavior:               pulumi.String("always"),
@@ -139,7 +147,6 @@ func NewFileHosting(ctx *pulumi.Context,
 		DefaultTtl: pulumi.Int(86400),
 		MaxTtl:     pulumi.Int(31536000),
 		MinTtl:     pulumi.Int(1),
-		Name:       pulumi.String("FileHostingCachePolicy"),
 		ParametersInCacheKeyAndForwardedToOrigin: cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginArgs{
 			CookiesConfig: &cloudfront.CachePolicyParametersInCacheKeyAndForwardedToOriginCookiesConfigArgs{
 				CookieBehavior: pulumi.String("none"),
@@ -165,7 +172,6 @@ func NewFileHosting(ctx *pulumi.Context,
 
 	// Create an origin request policy for the CloudFront distribution
 	originRequestPolicy, err := cloudfront.NewOriginRequestPolicy(ctx, "gotiacFileHostingOriginRequestPolicy", &cloudfront.OriginRequestPolicyArgs{
-		Name: pulumi.String("FileHostingOriginRequestPolicy"),
 		CookiesConfig: &cloudfront.OriginRequestPolicyCookiesConfigArgs{
 			CookieBehavior: pulumi.String("none"),
 		},
